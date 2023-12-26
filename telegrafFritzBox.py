@@ -16,7 +16,7 @@ import itertools
 
 
 FRITZBOX_ID = 'FritzBox' # Name of the InfluxDB database.
-IS_DSL = True # Switch to False for Cable or IP Connections
+IS_DSL = False # Switch to False for Cable or IP Connections
 
 
 # This script uses optionally the environment variables for authentification:
@@ -38,6 +38,8 @@ def extractvar(answer, variable, integer=False, string=True, name=""):
     if variable in answer.keys():
         avar = str(answer[variable])
         avar = avar.replace('"','')
+        avar = avar.replace(' ', '_')
+
         if name == "":
             name = variable
         if integer:
@@ -52,18 +54,21 @@ def extractvar(answer, variable, integer=False, string=True, name=""):
     return avar
 
 def assemblevar(*args):
-    data = ','.join(list(args))+','
-    #cleaning up output
+#    data = ','.join(list(args))+','
+    data = ','.join([x for x in list(args) if x!=''])+','
+   #cleaning up output
     data = data.replace("New", "")
     data = data.replace(",,",",")
     data = data.replace(",,",",")
     data = data.replace(",,",",")
     data = data.replace(",,",",")
     data = data[:-1]
+
     return data
 
 def influxrow(tag, data):
     influx = FRITZBOX_ID +','+ fbName +  ',source=' + tag + ' ' + data
+#    influx = influx.replace(" ,", ",")
     print(influx)
 
 # Speccialist Stats that have to be assembled (counted) ourselfes
@@ -154,7 +159,7 @@ wlanAssocGuest = readfritz('WLANConfiguration3', 'GetTotalAssociations')
 firmware = 'Firmware="'+ fc.device_manager.system_version+'"'
 model = extractvar(deviceInfo, 'NewModelName', False)
 serial = extractvar(deviceInfo, 'NewSerialNumber', False)
-fbName = extractvar(fritzInfo, 'NewDomainName', False, False, 'host')
+fbName = "host=(none)" #extractvar(fritzInfo, 'NewDomainName', False, False, 'host')
 
 # Connection Information
 upTime = extractvar(deviceInfo, 'NewUpTime', True)
@@ -216,8 +221,8 @@ wlanPackageDown50 = extractvar(wlanStat50, 'NewTotalPacketsReceived', True, Fals
 wlanPackageUpGuest = extractvar(wlanStatGuest, 'NewTotalPacketsSent', True, False, 'PacketsSent')
 wlanPackageDownGuest = extractvar(wlanStatGuest, 'NewTotalPacketsReceived', True, False, 'PacketsReceived')
 wlanName24 = extractvar(wlanInfo24, 'NewSSID', False)
-wlanName50 = extractvar(wlanInfo50, 'NewSSID', False) 
-wlanNameGuest = extractvar(wlanInfoGuest, 'NewSSID', False) 
+wlanName50 = extractvar(wlanInfo50, 'NewSSID', False)
+wlanNameGuest = extractvar(wlanInfoGuest, 'NewSSID', False)
 wlanChannel24 = extractvar(wlanInfo24, 'NewChannel', True)
 wlanChannel50 = extractvar(wlanInfo50, 'NewChannel', True)
 wlanChannelGuest = extractvar(wlanInfoGuest, 'NewChannel', True)
@@ -227,7 +232,7 @@ wlanClientsGuest = extractvar(wlanAssocGuest, 'NewTotalAssociations', True, Fals
 
 
 # Output variables as sets of influxdb compatible lines
-general = assemblevar(model, connectionType, serial, firmware)
+general = assemblevar(model, connectionType , serial , firmware)
 influxrow('general', general)
 
 status = assemblevar(upTime,connectionStatus,connectionError)
@@ -243,8 +248,8 @@ if IS_DSL:
 network = assemblevar(externalIP, dns, localDns, hostsEntry, hostsKnown, hostsKnownLAN, hostsKnownWLAN, hostsActive, hostsActiveLAN, hostsActiveWLAN)
 influxrow('network', network)
 
-lan = assemblevar(lanPackageUp, lanPackageDown)
-influxrow('lan', lan)
+#lan = assemblevar(lanPackageUp, lanPackageDown)
+#influxrow('lan', lan)
 
 wlan24 = assemblevar(wlanName24, wlanChannel24, wlanClients24, wlanPackageUp24, wlanPackageDown24)
 influxrow('wlan_2.4GHz', wlan24)
